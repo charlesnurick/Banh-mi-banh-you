@@ -10,11 +10,13 @@
   body {
     margin:0; min-height:100vh; font-family:"Trebuchet MS","Segoe UI",Helvetica,Arial,sans-serif;
     background:
-      repeating-linear-gradient(45deg, rgba(255,255,255,.04) 0 14px, transparent 14px 28px),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'%3E%3Cg fill='none' stroke='%23ffe9a8' stroke-opacity='.22' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M10 70c30-40 60 30 90-5s50-30 70 0 40 30 20 55-50 5-60-15 20-35 45-20'/%3E%3Cpath d='M30 62l-8-12 14 4M160 45l6-12 6 12' /%3E%3C/g%3E%3Cg fill='%23ffe9a8' fill-opacity='.2'%3E%3Cellipse cx='290' cy='60' rx='18' ry='22'/%3E%3Crect x='282' y='34' width='16' height='5'/%3E%3Crect x='282' y='82' width='16' height='5'/%3E%3C/g%3E%3Cpath d='M290 87v22' stroke='%23ffe9a8' stroke-opacity='.2' stroke-width='3'/%3E%3Cg fill='%23ffe9a8' fill-opacity='.18'%3E%3Cpath d='M40 250c0-18 30-24 60-24s44 6 44 18-18 20-44 20-60-2-60-14z'/%3E%3C/g%3E%3Cg fill='none' stroke='%23ffe9a8' stroke-opacity='.2' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='230' cy='300' r='12'/%3E%3Ccircle cx='300' cy='300' r='12'/%3E%3Cpath d='M230 300l25-30h20l25 30M262 270l-6-18h-12M275 270l4-14h12'/%3E%3C/g%3E%3Cg fill='%23ffe9a8' fill-opacity='.2'%3E%3Ccircle cx='60' cy='330' r='4'/%3E%3Ccircle cx='80' cy='318' r='4'/%3E%3Ccircle cx='100' cy='330' r='4'/%3E%3C/g%3E%3C/svg%3E"),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.03) 0 14px, transparent 14px 28px),
       radial-gradient(circle at 20% 10%, rgba(140,230,160,.55) 0, transparent 40%),
       radial-gradient(circle at 85% 90%, rgba(5,60,30,.6) 0, transparent 50%),
       linear-gradient(160deg, #3fb56a 0%, #1f8a4a 45%, #0e5a30 100%);
     background-attachment: fixed;
+    background-size: 360px 360px, auto, auto, auto, auto;
     color:#fff; display:flex; justify-content:center; padding:16px; overflow-x:hidden;
   }
   main { width:100%; max-width:620px; text-align:center; }
@@ -45,18 +47,31 @@
     max-width:30vw; width:max-content; overflow-wrap:anywhere; line-height:1.15; transition:all .3s;
   }
   .opt.win span { background:linear-gradient(180deg,#ffe28a,#ffc83d); transform:translate(-50%,-50%) scale(1.25); z-index:5; }
-  #pointer { position:absolute; left:50%; top:50%; width:0; height:0; }
-  #pointerInner { position:absolute; left:0; top:0; width:44%; transform-origin:0 50%; transform:translateY(-50%); }
+  #pointer { position:absolute; inset:0; z-index:3; }
+  #pointerInner { position:absolute; left:50%; top:50%; width:44%; transform-origin:0 50%; transform:translateY(-50%); }
   #pointerInner svg { width:100%; display:block; overflow:visible; filter:drop-shadow(2px 3px 0 rgba(0,0,0,.25)); }
   #hub { position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px; background:var(--dark); border-radius:50%; z-index:4; }
 
   #result { font-size:clamp(1.4rem,6vw,2.2rem); margin:6px 0; text-shadow:0 2px 8px rgba(0,40,20,.5); overflow-wrap:anywhere; }
   #result small { display:block; font-size:.9rem; opacity:.9; text-shadow:none; }
+  .deco { position:fixed; pointer-events:none; z-index:0; filter:drop-shadow(0 4px 6px rgba(0,40,20,.4)); }
+  .lantern { top:-6px; font-size:clamp(34px,9vw,64px); transform-origin:50% 0; animation:sway 4s ease-in-out infinite alternate; }
+  .dragon { bottom:6px; right:8px; font-size:clamp(40px,10vw,72px); opacity:.9; }
+  .scooter { bottom:6px; left:-80px; font-size:clamp(34px,8vw,56px); animation:ride 14s linear infinite; }
+  @keyframes sway { from { transform:rotate(-8deg); } to { transform:rotate(8deg); } }
+  @keyframes ride { to { transform:translateX(calc(100vw + 160px)); } }
+  main { position:relative; z-index:1; }
   .veg { position:fixed; top:-50px; font-size:28px; pointer-events:none; z-index:100; animation:fall linear forwards; }
   @keyframes fall { to { transform:translate(var(--dx),110vh) rotate(var(--rot)); } }
 </style>
 </head>
 <body>
+<div class="deco lantern" style="left:4%">🏮</div>
+<div class="deco lantern" style="left:18%;animation-delay:-1.5s">🏮</div>
+<div class="deco lantern" style="right:18%;animation-delay:-2.5s">🏮</div>
+<div class="deco lantern" style="right:4%;animation-delay:-.7s">🏮</div>
+<div class="deco dragon">🐉</div>
+<div class="deco scooter">🛵🥖</div>
 <main>
   <h1>Bánh mì or Bánh you? 🥖</h1>
   <p class="sub">Can't decide? Let the bánh mì choose!</p>
@@ -163,11 +178,16 @@
     let delta = (((target - cur) % 360) + 360) % 360;
     const p = $('pointer');
     p.style.transition = 'none';
-    p.style.transform = 'rotate(' + rotation + 'deg)';
-    void p.offsetWidth;
-    rotation += delta + 360 * (5 + Math.floor(Math.random() * 3));
-    p.style.transition = 'transform 5s cubic-bezier(.12,.6,.1,1)';
-    p.style.transform = 'rotate(' + rotation + 'deg)';
+    const startRot = rotation, total = delta + 360 * (5 + Math.floor(Math.random() * 3)), dur = 5000;
+    rotation = startRot + total;
+    const t0 = performance.now();
+    const frame = now => {
+      const t = Math.min((now - t0) / dur, 1);
+      const eased = 1 - Math.pow(1 - t, 4);
+      p.style.transform = 'rotate(' + (startRot + total * eased) + 'deg)';
+      if (t < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
     setTimeout(() => {
       spinning = false; $('spin').disabled = false; $('edit').disabled = false;
       $('spin').textContent = 'Spin again! 🔁';
