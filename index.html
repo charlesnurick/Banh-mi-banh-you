@@ -26,6 +26,7 @@
   .hidden { display:none !important; }
   #optionList { list-style:none; padding:0; margin:0 0 12px; display:grid; gap:8px; }
   #optionList li { display:flex; gap:6px; }
+  input[type=text].dup { border:2px solid #d62839; background:#ffe3e3; color:#8a1020; }
   input[type=text] { flex:1; min-width:0; font:inherit; padding:10px 12px; border:1px solid #c9b77f; border-radius:12px; background:#fffdf5; }
   button { font:inherit; font-weight:bold; cursor:pointer; border:1px solid rgba(0,0,0,.25); border-radius:999px; padding:10px 20px; background:linear-gradient(180deg,#ffd966,#f0a923); color:#3b2a14; box-shadow:0 4px 10px rgba(0,40,20,.35); transition:transform .08s; }
   button:active { transform:translateY(2px); box-shadow:0 1px 4px rgba(0,40,20,.35); }
@@ -114,7 +115,7 @@
     <div class="row">
       <button id="spin" class="big">SPIN! 🌀</button>
       <button id="mute" title="Toggle song" aria-label="Toggle song">🔊</button>
-      <button id="edit">✏️ Edit options</button>
+      <button id="edit">Edit options</button>
     </div>
   </section>
 </main>
@@ -131,6 +132,7 @@
     const li = document.createElement('li');
     li.innerHTML = '<input type="text" maxlength="40" placeholder="Type an option…"><button class="del" title="Remove" aria-label="Remove option">✕</button>';
     li.querySelector('input').value = value;
+    li.querySelector('input').addEventListener('input', e => e.target.classList.remove('dup'));
     li.querySelector('input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addRow(); list.lastChild.querySelector('input').focus(); } });
     li.querySelector('.del').onclick = () => { if (list.children.length > MIN) { li.remove(); refresh(); } };
     list.appendChild(li); refresh();
@@ -143,7 +145,17 @@
   $('add').onclick = () => { addRow(); list.lastChild.querySelector('input').focus(); };
 
   $('go').onclick = () => {
-    const vals = [...list.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+    const inputs = [...list.querySelectorAll('input')];
+    inputs.forEach(i => i.classList.remove('dup'));
+    const seen = {};
+    inputs.forEach(i => { const k = i.value.trim().toLowerCase(); if (k) (seen[k] = seen[k] || []).push(i); });
+    const dups = Object.values(seen).filter(g => g.length > 1);
+    if (dups.length) {
+      dups.flat().forEach(i => i.classList.add('dup'));
+      $('err').textContent = 'Some options are the same. Please make each option different.';
+      return;
+    }
+    const vals = inputs.map(i => i.value.trim()).filter(Boolean);
     if (vals.length < MIN) { $('err').textContent = 'Give me at least ' + MIN + ' options to choose from!'; return; }
     $('err').textContent = '';
     options = vals;
@@ -176,8 +188,8 @@
   }
   window.addEventListener('resize', () => { if (options.length && !spinning) { const r = rotation; buildWheel(); rotation = r; $('pointer').style.transform = 'rotate(' + r + 'deg)'; } });
 
-  const LYRICS = ["Can't decide what to do?", "The Banh Mi will do it for you!"];
-  const SPIN_MS = 6500;
+  const LYRICS = ["Can't decide what to do?", "The banh mi will choose for you!"];
+  const SPIN_MS = 5400;
   const audio = new Audio('song.mp3');
   audio.preload = 'auto';
   let songOn = true, songTimers = [], mode = 'spinner', walkerAt = 0;
@@ -189,7 +201,7 @@
     const pr = audio.play(); if (pr && pr.catch) pr.catch(() => {});
     const lyric = $('lyric');
     const show = (ms, text) => songTimers.push(setTimeout(() => { lyric.textContent = '🎵 ' + text + ' 🎵'; }, ms));
-    show(0, LYRICS[0]); show(SPIN_MS * 0.45, LYRICS[1]);
+    show(0, LYRICS.join(' '));
   }
   function stopSong() {
     songTimers.forEach(clearTimeout); songTimers = [];
@@ -259,7 +271,7 @@
   function finish(pick, nodes) {
     stopSong();
     spinning = false; $('spin').disabled = false; $('edit').disabled = false; $('modeBtn').disabled = false;
-    $('spin').textContent = 'Spin again! 🔁';
+    $('spin').textContent = 'Spin again!';
     nodes[pick].classList.add('win');
     $('result').innerHTML = '<small>The bánh mì has spoken!</small>🎉 ' + escapeHtml(options[pick]) + ' 🎉';
     confetti();
