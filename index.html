@@ -61,6 +61,7 @@
   @keyframes sway { from { transform:rotate(-8deg); } to { transform:rotate(8deg); } }
   @keyframes ride { to { transform:translateX(calc(100vw + 160px)); } }
   main { position:relative; z-index:1; }
+  #lyric { min-height:1.6em; font-size:clamp(1rem,4.5vw,1.4rem); font-style:italic; text-shadow:0 2px 8px rgba(0,40,20,.6); margin:4px 0; }
   .veg { position:fixed; top:-50px; font-size:28px; pointer-events:none; z-index:100; animation:fall linear forwards; }
   @keyframes fall { to { transform:translate(var(--dx),110vh) rotate(var(--rot)); } }
 </style>
@@ -105,8 +106,10 @@
       <div id="hub"></div>
     </div>
     <div id="result" aria-live="polite"></div>
+    <div id="lyric" aria-hidden="true"></div>
     <div class="row">
       <button id="spin" class="big">SPIN! 🌀</button>
+      <button id="mute" title="Toggle song" aria-label="Toggle song">🔊</button>
       <button id="edit">✏️ Edit options</button>
     </div>
   </section>
@@ -167,8 +170,60 @@
   }
   window.addEventListener('resize', () => { if (options.length && !spinning) { const r = rotation; buildWheel(); rotation = r; $('pointer').style.transform = 'rotate(' + r + 'deg)'; } });
 
+  const LYRICS = ["Can't decide what to do?", "The Banh Mi will do it for you!"];
+  const BEAT = 0.33;
+  const TUNE = [
+    [880, 0], [988, 1], [880, 2], [740, 3], [659, 4], [587, 5],
+    [587, 6], [740, 7], [880, 8], [988, 9], [880, 10], [740, 11], [988, 12], [1175, 13]
+  ];
+  let audioCtx = null, songOn = true, songTimers = [];
+
+  function pluck(freq, when, len = 0.3) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(0.35, when + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + len);
+    o.connect(g).connect(audioCtx.destination); o.start(when); o.stop(when + len + 0.05);
+  }
+  function thump(when) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.setValueAtTime(150, when); o.frequency.exponentialRampToValueAtTime(45, when + 0.15);
+    g.gain.setValueAtTime(0.5, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
+    o.connect(g).connect(audioCtx.destination); o.start(when); o.stop(when + 0.2);
+  }
+  function startSong() {
+    stopSong();
+    if (!songOn) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      audioCtx = audioCtx || new AC();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t0 = audioCtx.currentTime + 0.05;
+      TUNE.forEach(([f, b]) => { pluck(f, t0 + b * BEAT); pluck(f / 2, t0 + b * BEAT, 0.2); });
+      for (let b = 0; b < 15; b += 2) thump(t0 + b * BEAT);
+      [587, 740, 880].forEach(f => pluck(f, t0 + 14 * BEAT, 0.9));
+    }
+    const lyric = $('lyric');
+    const show = (i, text) => songTimers.push(setTimeout(() => { lyric.textContent = '🎵 ' + text + ' 🎵'; speak(text); }, i * BEAT * 1000));
+    show(0, LYRICS[0]); show(6, LYRICS[1]);
+  }
+  function speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.25; u.pitch = 1.6; u.volume = 0.8;
+    speechSynthesis.speak(u);
+  }
+  function stopSong() {
+    songTimers.forEach(clearTimeout); songTimers = [];
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    $('lyric').textContent = '';
+  }
+  $('mute').onclick = () => { songOn = !songOn; $('mute').textContent = songOn ? '🔊' : '🔇'; if (!songOn) stopSong(); };
+
   $('spin').onclick = () => {
     if (spinning) return;
+    startSong();
     spinning = true; $('spin').disabled = true; $('edit').disabled = true;
     $('result').textContent = '';
     document.querySelectorAll('.opt').forEach(o => o.classList.remove('win'));
@@ -189,6 +244,7 @@
     };
     requestAnimationFrame(frame);
     setTimeout(() => {
+      $('lyric').textContent = '';
       p.style.transform = 'rotate(' + rotation + 'deg)';
       spinning = false; $('spin').disabled = false; $('edit').disabled = false;
       $('spin').textContent = 'Spin again! 🔁';
