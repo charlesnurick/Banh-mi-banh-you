@@ -56,11 +56,15 @@
   #result small { display:block; font-size:.9rem; opacity:.9; text-shadow:none; }
   .deco { position:fixed; pointer-events:none; z-index:0; filter:drop-shadow(0 4px 6px rgba(0,40,20,.4)); }
   .lantern { top:-6px; font-size:clamp(34px,9vw,64px); transform-origin:50% 0; animation:sway 4s ease-in-out infinite alternate; }
-  .dragon { bottom:6px; right:8px; font-size:clamp(40px,10vw,72px); opacity:.9; }
-  .scooter { bottom:6px; left:-80px; font-size:clamp(34px,8vw,56px); animation:ride 14s linear infinite; }
   @keyframes sway { from { transform:rotate(-8deg); } to { transform:rotate(8deg); } }
-  @keyframes ride { to { transform:translateX(calc(100vw + 160px)); } }
-  main { position:relative; z-index:1; }
+  main { position:relative; z-index:1; padding-top:40px; }
+  #modeBtn { position:fixed; top:10px; right:10px; z-index:10; padding:8px 16px; font-size:.9rem; }
+  #board { position:relative; display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); padding:14px; margin:0 auto 12px; border-radius:22px; background:linear-gradient(180deg,#fffaea,#f6e6b8); box-shadow:0 12px 30px rgba(0,40,20,.45); }
+  .tile { min-height:70px; display:flex; align-items:center; justify-content:center; text-align:center; padding:8px; border-radius:14px; font-weight:bold; color:#3b2a14; overflow-wrap:anywhere; line-height:1.15;
+    background:linear-gradient(180deg,#fff,#efe3c0); border:1px solid rgba(0,0,0,.2); box-shadow:0 2px 6px rgba(0,40,20,.25); transition:transform .3s, background .3s; }
+  .tile.win { background:linear-gradient(180deg,#ffe28a,#ffc83d); transform:scale(1.08); }
+  #walker { position:absolute; left:0; top:0; width:84px; margin:-13px 0 0 -42px; pointer-events:none; z-index:5; filter:drop-shadow(2px 4px 3px rgba(0,0,0,.35)); }
+  #walker svg { width:100%; display:block; }
   #lyric { min-height:1.6em; font-size:clamp(1rem,4.5vw,1.4rem); font-style:italic; text-shadow:0 2px 8px rgba(0,40,20,.6); margin:4px 0; }
   .veg { position:fixed; top:-50px; font-size:28px; pointer-events:none; z-index:100; animation:fall linear forwards; }
   @keyframes fall { to { transform:translate(var(--dx),110vh) rotate(var(--rot)); } }
@@ -70,11 +74,10 @@
 <div class="deco lantern" style="left:4%">🏮</div>
 <div class="deco lantern" style="left:18%;animation-delay:-1.5s">🏮</div>
 <div class="deco lantern" style="right:18%;animation-delay:-2.5s">🏮</div>
-<div class="deco lantern" style="right:4%;animation-delay:-.7s">🏮</div>
-<div class="deco dragon">🐉</div>
-<div class="deco scooter">🛵🥖</div>
+<div class="deco lantern" style="right:26%;animation-delay:-.7s">🏮</div>
+<button id="modeBtn" title="Switch view">Board view</button>
 <main>
-  <h1>Bánh mì or Bánh you? 🥖</h1>
+  <h1>Bánh mì or Bánh you?</h1>
   <p class="sub">Can't decide? Let the bánh mì choose!</p>
 
   <section id="setup" class="card">
@@ -84,7 +87,7 @@
     <div class="err" id="err"></div>
     <div class="row">
       <button id="add">➕ Add option</button>
-      <button id="go" class="big">Ready! 🥖</button>
+      <button id="go" class="big">Ready!</button>
     </div>
   </section>
 
@@ -105,6 +108,7 @@
       </div></div>
       <div id="hub"></div>
     </div>
+    <div id="board" class="hidden"><div id="walker"></div></div>
     <div id="result" aria-live="polite"></div>
     <div id="lyric" aria-hidden="true"></div>
     <div class="row">
@@ -142,8 +146,9 @@
     const vals = [...list.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
     if (vals.length < MIN) { $('err').textContent = 'Give me at least ' + MIN + ' options to choose from!'; return; }
     $('err').textContent = '';
-    options = vals; buildWheel();
+    options = vals;
     $('setup').classList.add('hidden'); $('game').classList.remove('hidden');
+    buildWheel();
   };
   $('edit').onclick = () => {
     if (spinning) return;
@@ -167,73 +172,116 @@
     });
     rotation = -90; $('pointerInner').style.transition = 'none';
     $('pointer').style.transform = 'rotate(' + rotation + 'deg)';
+    buildBoard();
   }
   window.addEventListener('resize', () => { if (options.length && !spinning) { const r = rotation; buildWheel(); rotation = r; $('pointer').style.transform = 'rotate(' + r + 'deg)'; } });
 
   const LYRICS = ["Can't decide what to do?", "The Banh Mi will do it for you!"];
-  const BEAT = 0.33;
-  const TUNE = [
-    [880, 0], [988, 1], [880, 2], [740, 3], [659, 4], [587, 5],
-    [587, 6], [740, 7], [880, 8], [988, 9], [880, 10], [740, 11], [988, 12], [1175, 13]
-  ];
-  let audioCtx = null, songOn = true, songTimers = [];
+  const SPIN_MS = 6500;
+  const audio = new Audio('song.mp3');
+  audio.preload = 'auto';
+  let songOn = true, songTimers = [], mode = 'spinner', walkerAt = 0;
 
-  function pluck(freq, when, len = 0.3) {
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = 'triangle'; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(0.35, when + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + len);
-    o.connect(g).connect(audioCtx.destination); o.start(when); o.stop(when + len + 0.05);
-  }
-  function thump(when) {
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.frequency.setValueAtTime(150, when); o.frequency.exponentialRampToValueAtTime(45, when + 0.15);
-    g.gain.setValueAtTime(0.5, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.18);
-    o.connect(g).connect(audioCtx.destination); o.start(when); o.stop(when + 0.2);
-  }
   function startSong() {
     stopSong();
     if (!songOn) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) {
-      audioCtx = audioCtx || new AC();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const t0 = audioCtx.currentTime + 0.05;
-      TUNE.forEach(([f, b]) => { pluck(f, t0 + b * BEAT); pluck(f / 2, t0 + b * BEAT, 0.2); });
-      for (let b = 0; b < 15; b += 2) thump(t0 + b * BEAT);
-      [587, 740, 880].forEach(f => pluck(f, t0 + 14 * BEAT, 0.9));
-    }
+    audio.currentTime = 0;
+    const pr = audio.play(); if (pr && pr.catch) pr.catch(() => {});
     const lyric = $('lyric');
-    const show = (i, text) => songTimers.push(setTimeout(() => { lyric.textContent = '🎵 ' + text + ' 🎵'; speak(text); }, i * BEAT * 1000));
-    show(0, LYRICS[0]); show(6, LYRICS[1]);
-  }
-  function speak(text) {
-    if (!('speechSynthesis' in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.25; u.pitch = 1.6; u.volume = 0.8;
-    speechSynthesis.speak(u);
+    const show = (ms, text) => songTimers.push(setTimeout(() => { lyric.textContent = '🎵 ' + text + ' 🎵'; }, ms));
+    show(0, LYRICS[0]); show(SPIN_MS * 0.45, LYRICS[1]);
   }
   function stopSong() {
     songTimers.forEach(clearTimeout); songTimers = [];
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    audio.pause();
     $('lyric').textContent = '';
   }
   $('mute').onclick = () => { songOn = !songOn; $('mute').textContent = songOn ? '🔊' : '🔇'; if (!songOn) stopSong(); };
 
+  function buildBoard() {
+    const board = $('board');
+    board.querySelectorAll('.tile').forEach(t => t.remove());
+    options.forEach(text => {
+      const d = document.createElement('div'); d.className = 'tile'; d.textContent = text; board.appendChild(d);
+    });
+    const w = $('walker');
+    if (!w.firstChild) w.appendChild($('pointerInner').querySelector('svg').cloneNode(true));
+    walkerAt = 0; placeWalker(0);
+  }
+  function tileCenter(i) {
+    const t = $('board').querySelectorAll('.tile')[i];
+    return [t.offsetLeft + t.offsetWidth / 2, t.offsetTop + t.offsetHeight / 2];
+  }
+  function placeWalker(i) {
+    if (mode !== 'board') return;
+    const [x, y] = tileCenter(i), w = $('walker');
+    w.style.left = x + 'px'; w.style.top = y + 'px'; w.style.transform = 'none';
+    walkerAt = i;
+  }
+
+  function setMode(m) {
+    if (spinning) return;
+    mode = m;
+    $('stage').classList.toggle('hidden', m === 'board');
+    $('board').classList.toggle('hidden', m !== 'board');
+    $('modeBtn').textContent = m === 'board' ? 'Spinner view' : 'Board view';
+    $('result').textContent = '';
+    document.querySelectorAll('.opt, .tile').forEach(o => o.classList.remove('win'));
+    if (m === 'board' && options.length) placeWalker(walkerAt);
+  }
+  $('modeBtn').onclick = () => setMode(mode === 'board' ? 'spinner' : 'board');
+
+  function walk(pick, dur, onDone) {
+    const n = options.length;
+    const hops = Math.max(6, Math.round(dur / 900));
+    const path = [walkerAt];
+    for (let i = 1; i < hops; i++) {
+      let nx; do { nx = Math.floor(Math.random() * n); } while (nx === path[i - 1] || (i === hops - 1 && nx === pick));
+      path.push(nx);
+    }
+    path.push(pick);
+    const pts = path.map(tileCenter);
+    const w = $('walker'), per = dur / (pts.length - 1), t0 = performance.now();
+    const frame = now => {
+      const el = Math.min(now - t0, dur);
+      const k = Math.min(Math.floor(el / per), pts.length - 2);
+      const u = (el - k * per) / per, e = u * u * (3 - 2 * u);
+      const x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * e;
+      const y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * e - Math.sin(u * Math.PI) * 28;
+      const rot = el < dur ? Math.sin(el / 60) * 22 : 0;
+      w.style.left = x + 'px'; w.style.top = y + 'px';
+      w.style.transform = 'rotate(' + rot + 'deg) scale(' + (1 + Math.sin(u * Math.PI) * 0.25) + ')';
+      if (el < dur) requestAnimationFrame(frame); else { walkerAt = pick; onDone(); }
+    };
+    requestAnimationFrame(frame);
+  }
+
+  function finish(pick, nodes) {
+    stopSong();
+    spinning = false; $('spin').disabled = false; $('edit').disabled = false; $('modeBtn').disabled = false;
+    $('spin').textContent = 'Spin again! 🔁';
+    nodes[pick].classList.add('win');
+    $('result').innerHTML = '<small>The bánh mì has spoken!</small>🎉 ' + escapeHtml(options[pick]) + ' 🎉';
+    confetti();
+  }
+
   $('spin').onclick = () => {
     if (spinning) return;
     startSong();
-    spinning = true; $('spin').disabled = true; $('edit').disabled = true;
+    spinning = true; $('spin').disabled = true; $('edit').disabled = true; $('modeBtn').disabled = true;
     $('result').textContent = '';
-    document.querySelectorAll('.opt').forEach(o => o.classList.remove('win'));
+    document.querySelectorAll('.opt, .tile').forEach(o => o.classList.remove('win'));
     const n = options.length, pick = Math.floor(Math.random() * n);
+    if (mode === 'board') {
+      walk(pick, SPIN_MS, () => finish(pick, document.querySelectorAll('.tile')));
+      return;
+    }
     const target = angles[pick];
     const cur = ((rotation % 360) + 360) % 360;
     let delta = (((target - cur) % 360) + 360) % 360;
     const p = $('pointer');
     p.style.transition = 'none';
-    const startRot = rotation, total = delta + 360 * (5 + Math.floor(Math.random() * 3)), dur = 5000;
+    const startRot = rotation, total = delta + 360 * (5 + Math.floor(Math.random() * 3)), dur = SPIN_MS;
     rotation = startRot + total;
     const t0 = performance.now();
     const frame = now => {
@@ -241,17 +289,9 @@
       const eased = 1 - Math.pow(1 - t, 4);
       p.style.transform = 'rotate(' + (startRot + total * eased) + 'deg)';
       if (t < 1) requestAnimationFrame(frame);
+      else { p.style.transform = 'rotate(' + rotation + 'deg)'; finish(pick, document.querySelectorAll('.opt')); }
     };
     requestAnimationFrame(frame);
-    setTimeout(() => {
-      $('lyric').textContent = '';
-      p.style.transform = 'rotate(' + rotation + 'deg)';
-      spinning = false; $('spin').disabled = false; $('edit').disabled = false;
-      $('spin').textContent = 'Spin again! 🔁';
-      document.querySelectorAll('.opt')[pick].classList.add('win');
-      $('result').innerHTML = '<small>The bánh mì has spoken!</small>🎉 ' + escapeHtml(options[pick]) + ' 🎉';
-      confetti();
-    }, 5100);
   };
 
   function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
