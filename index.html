@@ -271,7 +271,7 @@
   function finish(pick, nodes) {
     stopSong();
     spinning = false; $('spin').disabled = false; $('edit').disabled = false; $('modeBtn').disabled = false;
-    $('spin').textContent = 'Spin again!';
+    $('spin').textContent = 'Choose again';
     nodes[pick].classList.add('win');
     $('result').innerHTML = '<small>The bánh mì has spoken!</small>🎉 ' + escapeHtml(options[pick]) + ' 🎉';
     confetti();
