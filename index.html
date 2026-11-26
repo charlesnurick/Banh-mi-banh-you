@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bánh mì or Bánh you?</title>
+<style>
+  :root { --green:#2e9e4f; --dark:#146b32; --cream:#fff4d6; --red:#e63946; --gold:#ffc83d; }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; min-height:100vh; font-family:"Comic Sans MS","Chalkboard SE","Marker Felt",system-ui,sans-serif;
+    background: radial-gradient(circle at 20% 10%, #5fd07f 0, transparent 35%),
+                radial-gradient(circle at 85% 90%, #1f8a43 0, transparent 40%), var(--green);
+    color:#fff; display:flex; justify-content:center; padding:16px; overflow-x:hidden;
+  }
+  main { width:100%; max-width:620px; text-align:center; }
+  h1 { font-size:clamp(1.8rem,7vw,3rem); margin:8px 0 4px; text-shadow:3px 3px 0 var(--dark); transform:rotate(-2deg); }
+  .sub { margin:0 0 16px; opacity:.95; }
+  .card { background:var(--cream); color:#3b2a14; border:4px solid var(--dark); border-radius:24px; padding:18px; box-shadow:6px 6px 0 var(--dark); }
+  .hidden { display:none !important; }
+  #optionList { list-style:none; padding:0; margin:0 0 12px; display:grid; gap:8px; }
+  #optionList li { display:flex; gap:6px; }
+  input[type=text] { flex:1; min-width:0; font:inherit; padding:10px 12px; border:3px solid var(--dark); border-radius:14px; background:#fff; }
+  button { font:inherit; font-weight:bold; cursor:pointer; border:3px solid var(--dark); border-radius:999px; padding:10px 20px; background:var(--gold); color:#3b2a14; box-shadow:0 4px 0 var(--dark); transition:transform .08s; }
+  button:active { transform:translateY(3px); box-shadow:0 1px 0 var(--dark); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.del { padding:6px 12px; background:#ffd0d0; }
+  button.big { background:var(--red); color:#fff; font-size:1.3rem; padding:12px 32px; }
+  .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+  .count { font-size:.9rem; margin:6px 0; }
+  .err { color:var(--red); min-height:1.2em; font-size:.9rem; }
+
+  #stage { position:relative; width:min(92vw,520px); aspect-ratio:1; margin:0 auto 12px; }
+  #plate { position:absolute; inset:0; border-radius:50%; background:var(--cream); border:5px solid var(--dark); box-shadow:6px 6px 0 var(--dark); }
+  .opt {
+    position:absolute; left:50%; top:50%; width:0; height:0;
+  }
+  .opt span {
+    position:absolute; transform:translate(-50%,-50%); background:#fff; color:#3b2a14; border:3px solid var(--dark);
+    border-radius:14px; padding:4px 8px; font-size:clamp(.7rem,2.8vw,1rem); font-weight:bold;
+    max-width:30vw; width:max-content; overflow-wrap:anywhere; line-height:1.15; transition:all .3s;
+  }
+  .opt.win span { background:var(--gold); transform:translate(-50%,-50%) scale(1.25); z-index:5; }
+  #pointer { position:absolute; left:50%; top:50%; width:0; height:0; }
+  #pointerInner { position:absolute; left:0; top:0; width:44%; transform-origin:0 50%; transform:translateY(-50%); }
+  #pointerInner svg { width:100%; display:block; overflow:visible; filter:drop-shadow(2px 3px 0 rgba(0,0,0,.25)); }
+  #hub { position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px; background:var(--dark); border-radius:50%; z-index:4; }
+
+  #result { font-size:clamp(1.4rem,6vw,2.2rem); margin:6px 0; text-shadow:2px 2px 0 var(--dark); overflow-wrap:anywhere; }
+  #result small { display:block; font-size:.9rem; opacity:.9; text-shadow:none; }
+  .veg { position:fixed; top:-50px; font-size:28px; pointer-events:none; z-index:100; animation:fall linear forwards; }
+  @keyframes fall { to { transform:translate(var(--dx),110vh) rotate(var(--rot)); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bánh mì or Bánh you? 🥖</h1>
+  <p class="sub">Can't decide? Let the bánh mì choose!</p>
+
+  <section id="setup" class="card">
+    <p style="margin-top:0"><b>What are your options?</b> (2 to 12)</p>
+    <ul id="optionList"></ul>
+    <div class="count" id="count"></div>
+    <div class="err" id="err"></div>
+    <div class="row">
+      <button id="add">➕ Add option</button>
+      <button id="go" class="big">Ready! 🥖</button>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div id="stage">
+      <div id="plate"></div>
+      <div id="opts"></div>
+      <div id="pointer"><div id="pointerInner">
+        <svg viewBox="0 0 200 60" aria-label="Bánh mì">
+          <path d="M8 30 C8 8 40 4 100 4 L168 8 C192 12 198 24 198 30 C198 36 192 48 168 52 L100 56 C40 56 8 52 8 30Z" fill="#e8a94a" stroke="#8a5a1c" stroke-width="4"/>
+          <path d="M20 30 C40 24 70 24 100 26 C130 24 160 24 184 30 C160 36 130 36 100 34 C70 36 40 36 20 30Z" fill="#5fbf5f" stroke="#2c7a2c" stroke-width="2"/>
+          <circle cx="60" cy="27" r="6" fill="#ff8a1f"/><circle cx="100" cy="28" r="6" fill="#ff8a1f"/><circle cx="140" cy="27" r="6" fill="#ff8a1f"/>
+          <circle cx="80" cy="33" r="4" fill="#e63946"/><circle cx="120" cy="33" r="4" fill="#e63946"/>
+          <path d="M50 12 Q60 8 70 12 M95 10 Q105 6 115 10 M135 12 Q145 8 155 12" stroke="#fff3c4" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <circle cx="172" cy="22" r="4" fill="#3b2a14"/><circle cx="172" cy="38" r="4" fill="#3b2a14"/>
+          <path d="M180 30 L196 30" stroke="#8a5a1c" stroke-width="3"/>
+        </svg>
+      </div></div>
+      <div id="hub"></div>
+    </div>
+    <div id="result" aria-live="polite"></div>
+    <div class="row">
+      <button id="spin" class="big">SPIN! 🌀</button>
+      <button id="edit">✏️ Edit options</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const MAX = 12, MIN = 2;
+  const $ = id => document.getElementById(id);
+  const list = $('optionList');
+  let options = [], angles = [], rotation = 0, spinning = false;
+
+  function addRow(value = '') {
+    if (list.children.length >= MAX) return;
+    const li = document.createElement('li');
+    li.innerHTML = '<input type="text" maxlength="40" placeholder="Type an option…"><button class="del" title="Remove" aria-label="Remove option">✕</button>';
+    li.querySelector('input').value = value;
+    li.querySelector('input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addRow(); list.lastChild.querySelector('input').focus(); } });
+    li.querySelector('.del').onclick = () => { if (list.children.length > MIN) { li.remove(); refresh(); } };
+    list.appendChild(li); refresh();
+  }
+  function refresh() {
+    $('count').textContent = list.children.length + ' / ' + MAX + ' options';
+    $('add').disabled = list.children.length >= MAX;
+    [...list.querySelectorAll('.del')].forEach(b => b.disabled = list.children.length <= MIN);
+  }
+  $('add').onclick = () => { addRow(); list.lastChild.querySelector('input').focus(); };
+
+  $('go').onclick = () => {
+    const vals = [...list.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+    if (vals.length < MIN) { $('err').textContent = 'Give me at least ' + MIN + ' options to choose from!'; return; }
+    $('err').textContent = '';
+    options = vals; buildWheel();
+    $('setup').classList.add('hidden'); $('game').classList.remove('hidden');
+  };
+  $('edit').onclick = () => {
+    if (spinning) return;
+    $('game').classList.add('hidden'); $('setup').classList.remove('hidden');
+    list.innerHTML = ''; options.forEach(addRow); while (list.children.length < MIN) addRow();
+  };
+
+  function buildWheel() {
+    const box = $('opts'); box.innerHTML = ''; $('result').textContent = '';
+    const n = options.length;
+    angles = options.map((_, i) => (360 / n) * i - 90);
+    options.forEach((text, i) => {
+      const o = document.createElement('div'); o.className = 'opt';
+      const r = n > 8 ? 38 : 36;
+      const a = angles[i] * Math.PI / 180;
+      const s = document.createElement('span'); s.textContent = text;
+      const stage = $('stage').clientWidth || 400;
+      s.style.left = (Math.cos(a) * r * stage / 100) + 'px';
+      s.style.top = (Math.sin(a) * r * stage / 100) + 'px';
+      o.appendChild(s); box.appendChild(o);
+    });
+    rotation = -90; $('pointerInner').style.transition = 'none';
+    $('pointer').style.transform = 'rotate(' + rotation + 'deg)';
+  }
+  window.addEventListener('resize', () => { if (options.length && !spinning) { const r = rotation; buildWheel(); rotation = r; $('pointer').style.transform = 'rotate(' + r + 'deg)'; } });
+
+  $('spin').onclick = () => {
+    if (spinning) return;
+    spinning = true; $('spin').disabled = true; $('edit').disabled = true;
+    $('result').textContent = '';
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('win'));
+    const n = options.length, pick = Math.floor(Math.random() * n);
+    const target = angles[pick];
+    const cur = ((rotation % 360) + 360) % 360;
+    let delta = (((target - cur) % 360) + 360) % 360;
+    rotation += delta + 360 * (5 + Math.floor(Math.random() * 3));
+    const p = $('pointer');
+    p.style.transition = 'transform 5s cubic-bezier(.12,.6,.1,1)';
+    p.style.transform = 'rotate(' + rotation + 'deg)';
+    setTimeout(() => {
+      spinning = false; $('spin').disabled = false; $('edit').disabled = false;
+      $('spin').textContent = 'Spin again! 🔁';
+      document.querySelectorAll('.opt')[pick].classList.add('win');
+      $('result').innerHTML = '<small>The bánh mì has spoken!</small>🎉 ' + escapeHtml(options[pick]) + ' 🎉';
+      confetti();
+    }, 5100);
+  };
+
+  function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function confetti() {
+    const veg = ['🥕','🥒','🌿','🌶️','🧅','🥬','🍃','🧄'];
+    for (let i = 0; i < 60; i++) {
+      const v = document.createElement('div'); v.className = 'veg';
+      v.textContent = veg[Math.floor(Math.random() * veg.length)];
+      v.style.left = Math.random() * 100 + 'vw';
+      v.style.fontSize = (18 + Math.random() * 22) + 'px';
+      v.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px');
+      v.style.setProperty('--rot', (Math.random() * 1080 - 540) + 'deg');
+      v.style.animationDuration = (2 + Math.random() * 2.5) + 's';
+      v.style.animationDelay = (Math.random() * 0.6) + 's';
+      document.body.appendChild(v);
+      setTimeout(() => v.remove(), 5500);
+    }
+  }
+
+  addRow(); addRow(); addRow();
+})();
+</script>
+</body>
+</html>
