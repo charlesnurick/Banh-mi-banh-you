@@ -48,9 +48,9 @@
   }
   .opt.win span { background:linear-gradient(180deg,#ffe28a,#ffc83d); transform:translate(-50%,-50%) scale(1.25); z-index:5; }
   #pointer { position:absolute; inset:0; z-index:3; }
-  #pointerInner { position:absolute; left:50%; top:50%; width:44%; transform-origin:0 50%; transform:translateY(-50%); }
+  #pointerInner { position:absolute; left:24%; top:50%; width:52%; transform-origin:50% 50%; transform:translateY(-50%); }
   #pointerInner svg { width:100%; display:block; overflow:visible; filter:drop-shadow(2px 3px 0 rgba(0,0,0,.25)); }
-  #hub { position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px; background:var(--dark); border-radius:50%; z-index:4; }
+  #hub { position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px; background:var(--dark); border-radius:50%; z-index:4; display:none; }
 
   #result { font-size:clamp(1.4rem,6vw,2.2rem); margin:6px 0; text-shadow:0 2px 8px rgba(0,40,20,.5); overflow-wrap:anywhere; }
   #result small { display:block; font-size:.9rem; opacity:.9; text-shadow:none; }
@@ -189,6 +189,7 @@
     };
     requestAnimationFrame(frame);
     setTimeout(() => {
+      p.style.transform = 'rotate(' + rotation + 'deg)';
       spinning = false; $('spin').disabled = false; $('edit').disabled = false;
       $('spin').textContent = 'Spin again! 🔁';
       document.querySelectorAll('.opt')[pick].classList.add('win');
